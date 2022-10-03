@@ -73,7 +73,7 @@ set(ngtcp2_INCLUDE_DIRS
 )
 
 # Public shared library
-if(ENABLE_SHARED_LIB)
+#if(ENABLE_SHARED_LIB)
   add_library(ngtcp2 SHARED ${ngtcp2_SOURCES})
   set_target_properties(ngtcp2 PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
@@ -87,7 +87,7 @@ if(ENABLE_SHARED_LIB)
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
-endif()
+#endif()
 
 if(HAVE_CUNIT OR ENABLE_STATIC_LIB)
   # Static library (for unittests because of symbol visibility)

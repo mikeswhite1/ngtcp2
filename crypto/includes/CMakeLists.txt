@@ -25,11 +25,11 @@ install(FILES
     ngtcp2/ngtcp2_crypto.h
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
 
-if(HAVE_OPENSSL)
+# if(HAVE_OPENSSL)
   install(FILES
       ngtcp2/ngtcp2_crypto_openssl.h
       DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
-endif()
+# endif()
 
 if(HAVE_GNUTLS)
   install(FILES

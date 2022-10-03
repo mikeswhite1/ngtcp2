@@ -44,7 +44,7 @@ foreach(name libngtcp2_crypto_openssl.pc)
 endforeach()
 
 # Public shared library
-if(ENABLE_SHARED_LIB)
+# if(ENABLE_SHARED_LIB)
   add_library(ngtcp2_crypto_openssl SHARED ${ngtcp2_crypto_openssl_SOURCES})
   set_target_properties(ngtcp2_crypto_openssl PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
@@ -55,13 +55,13 @@ if(ENABLE_SHARED_LIB)
   )
   target_include_directories(ngtcp2_crypto_openssl PUBLIC
     ${ngtcp2_crypto_openssl_INCLUDE_DIRS})
-  target_link_libraries(ngtcp2_crypto_openssl ngtcp2 ${OPENSSL_LIBRARIES})
+  target_link_libraries(ngtcp2_crypto_openssl ngtcp2 openssl-quic)#${OPENSSL_LIBRARIES})
 
   install(TARGETS ngtcp2_crypto_openssl
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
-endif()
+# endif()
 
 if(ENABLE_STATIC_LIB)
   # Public static library

@@ -21,15 +21,15 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if(HAVE_CRYPTO)
-  add_subdirectory(includes)
-endif()
+# if(HAVE_CRYPTO)
+add_subdirectory(includes)
+# endif()
 
-if(HAVE_OPENSSL)
+#if(HAVE_OPENSSL)
   add_subdirectory(openssl)
-elseif(ENABLE_OPENSSL)
-  message(WARNING "libngtcp2_crypto_openssl library is disabled due to lack of good OpenSSL")
-endif()
+#elseif(ENABLE_OPENSSL)
+#  message(WARNING "libngtcp2_crypto_openssl library is disabled due to lack of good OpenSSL")
+#endif()
 
 if(HAVE_GNUTLS)
   add_subdirectory(gnutls)
