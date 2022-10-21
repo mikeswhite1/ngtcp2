@@ -26,9 +26,9 @@
 
 #include <stdio.h>
 #include <errno.h>
-#ifdef HAVE_UNISTD_H
+//#ifdef HAVE_UNISTD_H
 #  include <unistd.h>
-#endif /* HAVE_UNISTD_H */
+//#endif /* HAVE_UNISTD_H */
 #include <stdlib.h>
 #ifdef WIN32
 #  include <io.h>

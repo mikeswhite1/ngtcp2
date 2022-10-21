@@ -296,10 +296,15 @@ int Client::handshake_completed() {
       std::cerr << "Early data was rejected by server" << std::endl;
     }
 
-    ngtcp2_conn_early_data_rejected(conn_);
-
-    nstreams_done_ = 0;
-    streams_.clear();
+    // Some TLS backends only report early data rejection after
+    // handshake completion (e.g., OpenSSL).  For TLS backends which
+    // report it early (e.g., BoringSSL and PicoTLS), the following
+    // functions are noop.
+    if (auto rv = ngtcp2_conn_early_data_rejected(conn_); rv != 0) {
+      std::cerr << "ngtcp2_conn_early_data_rejected: " << ngtcp2_strerror(rv)
+                << std::endl;
+      return -1;
+    }
   }
 
   if (!config.quiet) {
@@ -560,6 +565,21 @@ int recv_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token,
 }
 } // namespace
 
+namespace {
+int early_data_rejected(ngtcp2_conn *conn, void *user_data) {
+  auto c = static_cast<Client *>(user_data);
+
+  c->early_data_rejected();
+
+  return 0;
+}
+} // namespace
+
+void Client::early_data_rejected() {
+  nstreams_done_ = 0;
+  streams_.clear();
+}
+
 int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                  const char *addr, const char *port,
                  TLSClientContext &tls_ctx) {
@@ -617,6 +637,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       ngtcp2_crypto_version_negotiation_cb,
       nullptr, // recv_rx_key
       nullptr, // recv_tx_key
+      ::early_data_rejected,
   };
 
   ngtcp2_cid scid, dcid;
@@ -663,11 +684,12 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.max_window = config.max_window;
   settings.max_stream_window = config.max_stream_window;
   if (config.max_udp_payload_size) {
-    settings.max_udp_payload_size = config.max_udp_payload_size;
-    settings.no_udp_payload_size_shaping = 1;
+    settings.max_tx_udp_payload_size = config.max_udp_payload_size;
+    settings.no_tx_udp_payload_size_shaping = 1;
   }
   settings.handshake_timeout = config.handshake_timeout;
   settings.no_pmtud = config.no_pmtud;
+  settings.ack_thresh = config.ack_thresh;
 
   std::string token;
 
@@ -896,12 +918,8 @@ int Client::write_streams() {
   ngtcp2_vec vec;
   ngtcp2_path_storage ps;
   size_t pktcnt = 0;
-  auto max_udp_payload_size = ngtcp2_conn_get_max_udp_payload_size(conn_);
-  size_t max_pktcnt =
-      (config.cc_algo == NGTCP2_CC_ALGO_BBR ||
-       config.cc_algo == NGTCP2_CC_ALGO_BBR2)
-          ? ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size
-          : 10;
+  auto max_udp_payload_size = ngtcp2_conn_get_max_tx_udp_payload_size(conn_);
+  auto max_pktcnt = ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size;
   auto ts = util::timestamp(loop_);
 
   ngtcp2_path_storage_zero(&ps);
@@ -1810,6 +1828,7 @@ void config_set_default(Config &config) {
   config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   config.handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
+  config.ack_thresh = 2;
 }
 } // namespace
 
@@ -1998,6 +2017,11 @@ Options:
               Default: )"
             << util::format_duration(config.handshake_timeout) << R"(
   --no-pmtud  Disables Path MTU Discovery.
+  --ack-thresh=<N>
+              The minimum number of the received ACK eliciting packets
+              that triggers immediate acknowledgement.
+              Default: )"
+            << config.ack_thresh << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -2073,6 +2097,7 @@ int main(int argc, char **argv) {
         {"other-versions", required_argument, &flag, 37},
         {"no-pmtud", no_argument, &flag, 38},
         {"preferred-versions", required_argument, &flag, 39},
+        {"ack-thresh", required_argument, &flag, 40},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2460,6 +2485,18 @@ int main(int argc, char **argv) {
         }
         break;
       }
+      case 40:
+        // --ack-thresh
+        if (auto n = util::parse_uint(optarg); !n) {
+          std::cerr << "ack-thresh: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else if (*n > 100) {
+          std::cerr << "ack-thresh: must not exceed 100" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.ack_thresh = *n;
+        }
+        break;
       }
       break;
     default:
